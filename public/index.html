@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mixer Classroom Console</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Classroom modules">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">V</div>
+          <div>
+            <strong>VAD Console</strong>
+            <span>Mixer realtime MVP</span>
+          </div>
+        </div>
+
+        <nav class="module-list" id="moduleList"></nav>
+
+        <section class="connection-panel">
+          <div class="section-title">Connection</div>
+          <div class="status-row">
+            <span id="connectionDot" class="status-dot"></span>
+            <span id="connectionText">Connecting</span>
+          </div>
+          <button id="simulateButton" class="primary-button" type="button">Start Mixer Sim</button>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Classroom Operations</h1>
+            <p>Realtime Mixer telemetry, source health, and bidirectional device controls.</p>
+          </div>
+          <div class="room-meta">
+            <span id="roomName">Classroom</span>
+            <strong id="roomMode">live-session</strong>
+          </div>
+        </header>
+
+        <section class="metrics-grid" aria-label="Dashboard metrics">
+          <article class="metric-card">
+            <span>Online modules</span>
+            <strong id="metricModules">0/4</strong>
+          </article>
+          <article class="metric-card">
+            <span>Active peak</span>
+            <strong id="metricPeak">0%</strong>
+          </article>
+          <article class="metric-card">
+            <span>Speaking sources</span>
+            <strong id="metricSpeaking">0</strong>
+          </article>
+          <article class="metric-card">
+            <span>Last frame</span>
+            <strong id="metricLatency">--</strong>
+          </article>
+        </section>
+
+        <section class="signal-stage" aria-label="Audio visualization">
+          <div class="stage-header">
+            <div>
+              <span class="eyeline">Active source</span>
+              <h2 id="activeSourceName">Teacher Mic</h2>
+            </div>
+            <div class="stage-meter">
+              <span id="activeLevelText">0%</span>
+              <div class="level-track" aria-hidden="true"><span id="activeLevelBar"></span></div>
+            </div>
+          </div>
+          <div class="spectrum" id="spectrum"></div>
+          <div class="history-strip" id="historyStrip" aria-label="Recent active source level history"></div>
+        </section>
+
+        <section class="content-grid">
+          <section class="panel source-panel">
+            <div class="panel-heading">
+              <h2>Mixer Sources</h2>
+              <span id="sourceCount">0 sources</span>
+            </div>
+            <div class="filter-row" id="sourceFilters" aria-label="Source filters">
+              <button class="active" data-filter="all" type="button">All</button>
+              <button data-filter="speaking" type="button">Speaking</button>
+              <button data-filter="muted" type="button">Muted</button>
+              <button data-filter="mixer" type="button">Mixer</button>
+            </div>
+            <div class="source-list" id="sourceList"></div>
+          </section>
+
+          <section class="panel command-panel">
+            <div class="panel-heading">
+              <h2>Control Surface</h2>
+              <span>REST + WS</span>
+            </div>
+            <form id="controlForm" class="control-form">
+              <label>
+                Target
+                <select id="controlTarget"></select>
+              </label>
+              <label>
+                Command
+                <select id="controlCommand">
+                  <option value="setMute">Set mute</option>
+                  <option value="setGain">Set gain</option>
+                  <option value="focusVideo">Focus video</option>
+                  <option value="setInteractionMode">Interaction mode</option>
+                  <option value="setGuestOnStage">Guest on stage</option>
+                </select>
+              </label>
+              <label>
+                Value
+                <input id="controlValue" type="text" value="true" />
+              </label>
+              <button class="primary-button" type="submit">Send Command</button>
+            </form>
+            <div class="source-inspector" id="sourceInspector"></div>
+            <div class="log-list" id="controlLog"></div>
+          </section>
+        </section>
+
+        <section class="panel api-panel">
+          <div class="panel-heading">
+            <h2>API Contract</h2>
+            <span>/api/spec</span>
+          </div>
+          <div class="contract-grid">
+            <pre id="contractView"></pre>
+            <div class="endpoint-list">
+              <button data-sample="frame" type="button">POST audio frame</button>
+              <button data-sample="mute" type="button">POST mute command</button>
+              <button data-sample="gain" type="button">POST gain command</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
