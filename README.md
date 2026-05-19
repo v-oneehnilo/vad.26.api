@@ -40,6 +40,19 @@ Tests:
 npm test
 ```
 
+## Vercel Deployment
+
+This project can be deployed to Vercel as a Vite dashboard plus REST API function.
+
+Vercel deployment behavior:
+
+- Dashboard assets are built into `dist/client`.
+- `/api/*` is routed to the Vercel Function in `api/index.ts`.
+- File snapshots are disabled in the Vercel Function because the serverless filesystem is not durable.
+- WebSocket `/ws` is not available on Vercel Functions. Use the local/LAN server for live show control, or move realtime transport to Firebase Realtime Database, Ably, Pusher, or another realtime provider.
+
+Required Vercel environment variables are listed in `.env.example`. Configure at least `CONTROL_TOKEN` for mutating API calls, plus the Firebase variables if using Firebase-backed adapters.
+
 ## Dashboard
 
 The root route serves the show-control dashboard in production. The first screen is the control surface, not a landing page.

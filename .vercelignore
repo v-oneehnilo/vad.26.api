@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.git/
+.playwright-mcp/
+data/
+dist/
+node_modules/
+tasks/
+coverage/
+playwright-report/
+test-results/
+*.log
