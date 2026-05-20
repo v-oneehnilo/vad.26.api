@@ -21,6 +21,7 @@ import {
   Zap
 } from "lucide-react";
 import type { ControlCommand, ModuleName, PerformanceState } from "../types";
+import { createFirebaseDashboardClient, shouldUseFirebaseRealtime } from "./firebaseShowControl";
 import "./styles.css";
 
 type ConnectionState = "connecting" | "connected" | "offline";
@@ -49,6 +50,7 @@ function App() {
   const [token, setToken] = React.useState(() => window.localStorage.getItem("vad-control-token") || "");
   const [lastAck, setLastAck] = React.useState("Waiting for control activity");
   const [manualText, setManualText] = React.useState("NEONPULSE");
+  const firebaseClientRef = React.useRef<ReturnType<typeof createFirebaseDashboardClient> | null>(null);
 
   React.useEffect(() => {
     window.localStorage.setItem("vad-control-token", token);
@@ -58,11 +60,32 @@ function App() {
     let closed = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | null = null;
+    let firebaseClient: ReturnType<typeof createFirebaseDashboardClient> | null = null;
 
     async function boot() {
       try {
         const state = await fetchJson<PerformanceState>("/api/state");
         if (!closed) setSnapshot(state);
+        if (shouldUseFirebaseRealtime()) {
+          firebaseClient = createFirebaseDashboardClient({
+            initialState: state,
+            token,
+            onState: (nextState) => {
+              if (!closed) setSnapshot(nextState);
+            },
+            onStatus: (status) => {
+              if (!closed) setConnection(status);
+            },
+            onAck: (message) => {
+              if (!closed) setLastAck(message);
+            },
+            onError: (message) => {
+              if (!closed) setLastAck(message);
+            }
+          });
+          firebaseClientRef.current = firebaseClient;
+          return;
+        }
       } catch {
         if (!closed) setConnection("offline");
       }
@@ -102,8 +125,10 @@ function App() {
       closed = true;
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       socket?.close();
+      firebaseClientRef.current = null;
+      void firebaseClient?.close();
     };
-  }, []);
+  }, [token]);
 
   const postJson = React.useCallback(async <T,>(url: string, body: unknown): Promise<T> => {
     const headers: Record<string, string> = { "content-type": "application/json" };
@@ -125,7 +150,7 @@ function App() {
     value?: unknown
   ) => {
     try {
-      const payload = {
+      const payload: Omit<ControlCommand, "timestamp"> = {
         type: "control.command",
         id: crypto.randomUUID(),
         module,
@@ -134,6 +159,11 @@ function App() {
         value,
         issuedBy: "dashboard-main"
       };
+      if (shouldUseFirebaseRealtime() && firebaseClientRef.current) {
+        const commandResult = await firebaseClientRef.current.sendControl(payload);
+        setLastAck(`${commandResult.command} sent for ${commandResult.target}`);
+        return;
+      }
       const result = await postJson<{ state: PerformanceState; command: ControlCommand }>("/api/control", payload);
       setSnapshot(result.state);
       setLastAck(`${result.command.command} accepted for ${result.command.target}`);
@@ -144,6 +174,10 @@ function App() {
 
   const saveSnapshot = React.useCallback(async () => {
     try {
+      if (shouldUseFirebaseRealtime() && firebaseClientRef.current) {
+        await firebaseClientRef.current.saveSnapshot();
+        return;
+      }
       const result = await postJson<{ state: PerformanceState }>("/api/show/snapshot", {});
       setSnapshot(result.state);
       setLastAck("Snapshot saved");
@@ -154,6 +188,10 @@ function App() {
 
   const resetShow = React.useCallback(async () => {
     try {
+      if (shouldUseFirebaseRealtime() && firebaseClientRef.current) {
+        await firebaseClientRef.current.resetShow();
+        return;
+      }
       const result = await postJson<{ state: PerformanceState }>("/api/show/reset", {});
       setSnapshot(result.state);
       setLastAck("Show reset");

@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "shows": {
+      "$showId": {
+        ".read": true,
+        ".write": true,
+        "commands": {
+          ".indexOn": ["timestamp"]
+        },
+        "events": {
+          ".indexOn": ["timestamp"]
+        }
+      }
+    }
+  }
+}
