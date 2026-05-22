@@ -239,7 +239,7 @@ test("normalizes flat interaction screen topology patches", async () => {
       body: JSON.stringify({
         source: "baofa",
         patch: {
-          screenTopology: ["A1", "A2", "A3", "A4", "A5", "A6", "B1"],
+          screenTopology: ["A1", "G1", "H2", "B1", "L1", "R2"],
           screenId: "B1"
         }
       })
@@ -248,10 +248,10 @@ test("normalizes flat interaction screen topology patches", async () => {
     const body = await response.json();
     assert.equal(response.status, 202);
     assert.deepEqual(body.state.modules.interaction.screenTopology, [
-      ["A1", "A2", "A3", "A4", "A5", "A6"],
-      ["B1"]
+      ["A1", "B1", "L1", "R2"]
     ]);
     assert.equal(body.state.modules.interaction.screenTopology[0][0], "A1");
+    assert.equal(body.state.modules.interaction.screenTopology.flat().includes("G1"), false);
   });
 });
 
@@ -274,6 +274,26 @@ test("accepts control commands and records control log", async () => {
     assert.equal(response.status, 202);
     assert.equal(body.state.audioSources["mic-teacher"].muted, true);
     assert.equal(body.state.commandLog[0].command, "setMute");
+  });
+});
+
+test("applies baofa visual mode controls", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/control`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        module: "interaction",
+        target: "visual-mode",
+        command: "setVisualMode",
+        value: "firework"
+      })
+    });
+
+    const body = await response.json();
+    assert.equal(response.status, 202);
+    assert.equal(body.state.modules.interaction.visualMode, "firework");
+    assert.equal(body.state.commandLog[0].command, "setVisualMode");
   });
 });
 

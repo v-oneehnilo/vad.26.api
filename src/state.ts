@@ -140,6 +140,7 @@ function createDefaultInteractionModule(): InteractionModuleState {
     role: "screen",
     overview: false,
     mode: "idle",
+    visualMode: "tree",
     intensity: 0.08,
     treeGrowth: 0,
     gestureActive: false,
@@ -242,6 +243,7 @@ function inferModule(command: string): ControlCommand["module"] {
     "setMode",
     "setIntensity",
     "resetTree",
+    "setVisualMode",
     "pulseScreen",
     "setScreen",
     "setScreenOwner",
@@ -458,12 +460,15 @@ function applyCommand(state: PerformanceState, command: ControlCommand) {
       state.modules.interaction.mode = "idle";
       state.modules.interaction.intensity = 0.08;
     }
+    if (command.command === "setVisualMode" && ["tree", "firework"].includes(String(value))) {
+      state.modules.interaction.visualMode = String(value) as InteractionModuleState["visualMode"];
+    }
     if (command.command === "pulseScreen") {
       state.modules.interaction.screenPulse = { source: String(value || command.target), timestamp: Date.now() };
     }
     if (command.command === "setScreen") {
       state.modules.interaction.screenId = String(value || command.target);
-      state.modules.interaction.role = state.modules.interaction.screenId === "MASTER" ? "master" : "screen";
+      state.modules.interaction.role = ["MASTER", "A1"].includes(state.modules.interaction.screenId) ? "master" : "screen";
     }
     if (command.command === "setScreenOwner") {
       const screenId = String(command.target || "");
@@ -512,6 +517,9 @@ function normalizePerformanceState(state: PerformanceState): PerformanceState {
   state.modules.interaction.screenRegistry = normalizeScreenRegistry(state.modules.interaction.screenRegistry);
   state.modules.interaction.screenRoutePreset = normalizeScreenRoutePreset(state.modules.interaction.screenRoutePreset) || "balanced";
   state.modules.interaction.screenPresentation = normalizeScreenPresentation(state.modules.interaction.screenPresentation);
+  state.modules.interaction.visualMode = ["tree", "firework"].includes(String(state.modules.interaction.visualMode))
+    ? state.modules.interaction.visualMode
+    : "tree";
   state.modules.interaction.screenRoutes = normalizeScreenRoutes(
     state.modules.interaction.screenRoutes,
     state.modules.interaction.screenRoutePreset
@@ -617,12 +625,16 @@ function normalizeScreenTopology(value: unknown): string[][] {
   if (!Array.isArray(value)) return SCREEN_TOPOLOGY;
   if (value.every((row) => Array.isArray(row))) {
     const rows = value
-      .map((row) => row.map((screenId) => String(screenId || "")))
+      .map((row) => row
+        .map((screenId) => String(screenId || "").trim())
+        .filter((screenId) => (SCREEN_IDS as readonly string[]).includes(screenId)))
       .filter((row) => row.length > 0);
     return rows.length > 0 ? rows : SCREEN_TOPOLOGY;
   }
   if (value.every((screenId) => typeof screenId === "string")) {
-    const screens = value.map((screenId) => screenId.trim()).filter(Boolean);
+    const screens = value
+      .map((screenId) => screenId.trim())
+      .filter((screenId) => (SCREEN_IDS as readonly string[]).includes(screenId));
     if (screens.length === 0) return SCREEN_TOPOLOGY;
     const rows: string[][] = [];
     for (let index = 0; index < screens.length; index += 6) {

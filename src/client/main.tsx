@@ -17,6 +17,7 @@ import {
   Save,
   Send,
   SlidersHorizontal,
+  Sparkles,
   Type,
   Zap
 } from "lucide-react";
@@ -56,6 +57,39 @@ const screenOwners: Array<{ value: ScreenOwner; label: string }> = [
   { value: "baofa", label: "Baofa" },
   { value: "off", label: "Off" },
   { value: "diagnostic", label: "Diag" }
+];
+
+type ScreenLayoutItem = {
+  id: string;
+  col: number;
+  row: number;
+  width?: number;
+  height?: number;
+  rotate?: number;
+};
+
+const stageBounds = { width: 11, height: 6.4 };
+const screenLayoutItems: ScreenLayoutItem[] = [
+  { id: "A1", col: 5.5, row: 0.7, width: 3.9, height: 1.05 },
+  { id: "B1", col: 2.9, row: 1.75 },
+  { id: "B2", col: 3.95, row: 1.75 },
+  { id: "B3", col: 5.0, row: 1.75 },
+  { id: "B4", col: 6.05, row: 1.75 },
+  { id: "B5", col: 7.1, row: 1.75 },
+  { id: "B6", col: 8.15, row: 1.75 },
+  { id: "C1", col: 1.75, row: 2.55, rotate: -14 },
+  { id: "C2", col: 2.55, row: 2.35, rotate: -4 },
+  { id: "C3", col: 8.45, row: 2.35, rotate: 4 },
+  { id: "C4", col: 9.25, row: 2.55, rotate: 14 },
+  { id: "D1", col: 4.2, row: 3.35 },
+  { id: "D2", col: 5.5, row: 3.15 },
+  { id: "D3", col: 6.8, row: 3.35 },
+  { id: "E1", col: 5.5, row: 4.35, width: 1.15 },
+  { id: "F1", col: 5.5, row: 5.55, width: 1.2 },
+  { id: "L1", col: 0.95, row: 4.2, height: 0.82 },
+  { id: "L2", col: 0.95, row: 5.4, height: 0.82 },
+  { id: "R1", col: 10.05, row: 4.2, height: 0.82 },
+  { id: "R2", col: 10.05, row: 5.4, height: 0.82 }
 ];
 
 function Root() {
@@ -437,34 +471,27 @@ function App() {
               </button>
             </div>
 
-            <div className="screen-grid">
-              <button
-                type="button"
-                className={snapshot.modules.interaction.screenId === "MASTER" ? "selected master-screen" : "master-screen"}
-                onClick={() => sendControl("interaction", "setScreen", "MASTER", "MASTER")}
-              >
-                MASTER
-              </button>
-              {screenTopology.flatMap((row, rowIndex) =>
-                row.map((screenId, index) => screenId ? (
+            <div className="screen-grid" aria-label="Physical screen layout">
+              {screenLayoutItems.map((screen) => {
+                const route = screenRoutes[screen.id];
+                return (
                   <button
-                    key={screenId}
+                    key={screen.id}
                     type="button"
                     className={[
-                      snapshot.modules.interaction.screenId === screenId ? "selected" : "",
-                      screenRoutes[screenId]?.owner ? `owner-${screenRoutes[screenId].owner}` : ""
+                      snapshot.modules.interaction.screenId === screen.id ? "selected" : "",
+                      screen.id === "A1" ? "master-screen" : "",
+                      route?.owner ? `owner-${route.owner}` : ""
                     ].filter(Boolean).join(" ")}
-                    style={{ gridColumn: index + 1, gridRow: rowIndex + 2 }}
-                    onClick={() => sendControl("interaction", "setScreen", screenId, screenId)}
-                    title={screenRoutes[screenId]?.url || screenRoutes[screenId]?.owner || screenId}
+                    style={getScreenLayoutStyle(screen)}
+                    onClick={() => sendControl("interaction", "setScreen", screen.id, screen.id)}
+                    title={route?.url || route?.owner || screen.id}
                   >
-                    <strong>{screenId}</strong>
-                    <span>{formatOwner(screenRoutes[screenId]?.owner)}</span>
+                    <strong>{screen.id}</strong>
+                    <span>{formatOwner(route?.owner)}</span>
                   </button>
-                ) : (
-                  <span key={`empty-${rowIndex}-${index}`} style={{ gridColumn: index + 1, gridRow: rowIndex + 2 }} />
-                ))
-              )}
+                );
+              })}
             </div>
 
             <div className="interaction-readout">
@@ -493,6 +520,18 @@ function App() {
               </button>
               <button type="button" onClick={() => sendControl("interaction", "resetTree", "tree", true)}>
                 Reset tree
+              </button>
+              <button
+                type="button"
+                className={snapshot.modules.interaction.visualMode === "firework" ? "selected" : ""}
+                onClick={() => sendControl(
+                  "interaction",
+                  "setVisualMode",
+                  "visual-mode",
+                  snapshot.modules.interaction.visualMode === "firework" ? "tree" : "firework"
+                )}
+              >
+                <Sparkles size={15} /> {snapshot.modules.interaction.visualMode === "firework" ? "Firework" : "Tree"}
               </button>
             </div>
 
@@ -774,6 +813,18 @@ function formatOwner(owner: unknown) {
   if (owner === "off") return "Off";
   if (owner === "diagnostic") return "Diag";
   return "Unset";
+}
+
+function getScreenLayoutStyle(item: ScreenLayoutItem): React.CSSProperties {
+  const width = item.width ?? 0.78;
+  const height = item.height ?? 0.52;
+  return {
+    left: `${((item.col - width / 2) / stageBounds.width) * 100}%`,
+    top: `${((item.row - height / 2) / stageBounds.height) * 100}%`,
+    width: `${(width / stageBounds.width) * 100}%`,
+    height: `${(height / stageBounds.height) * 100}%`,
+    transform: item.rotate ? `rotate(${item.rotate}deg)` : undefined
+  };
 }
 
 function getScreenIdFromPath() {

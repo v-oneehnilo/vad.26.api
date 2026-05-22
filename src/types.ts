@@ -133,6 +133,7 @@ export interface InteractionModuleState {
   role: "screen" | "master";
   overview: boolean;
   mode: "idle" | "interaction" | "flow" | "climax";
+  visualMode: "tree" | "firework";
   intensity: number;
   treeGrowth: number;
   gestureActive: boolean;
