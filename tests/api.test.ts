@@ -36,7 +36,10 @@ test("serves API spec and initial state", async () => {
     assert.equal(state.modules.interaction.screenRoutes.A1.owner, "vj");
     assert.equal(state.modules.interaction.screenRoutes.B1.owner, "baofa");
     assert.equal(state.modules.interaction.screenRoutes.L1.url, "http://localhost:4302/screen/L1");
-  });
+    assert.equal(state.modules.interaction.screenPresentation.autoRedirect, true);
+    assert.equal(state.modules.interaction.screenPresentation.showDebug, false);
+    assert.equal(state.modules.interaction.screenPresentation.showMenu, false);
+  }, { loadSnapshot: false });
 });
 
 test("updates screen route preset and individual screen owners", async () => {
@@ -94,6 +97,77 @@ test("accepts interaction module patch for screen route preset", async () => {
     assert.equal(body.state.modules.interaction.screenRoutePreset, "baofa_takeover");
     assert.equal(body.state.modules.interaction.screenRoutes.A1.owner, "baofa");
     assert.equal(body.state.modules.interaction.screenRoutes.R2.url, "http://localhost:4303/screen/R2");
+  });
+});
+
+test("updates screen presentation controls", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/control`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        module: "interaction",
+        target: "screen-debug",
+        command: "setScreenDebugVisible",
+        value: true,
+        issuedBy: "test"
+      })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 202);
+    assert.equal(body.state.modules.interaction.screenPresentation.showDebug, true);
+
+    const presentation = await fetch(`${baseUrl}/api/control`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        module: "interaction",
+        target: "screen-presentation",
+        command: "setScreenPresentation",
+        value: { autoRedirect: false, showMenu: true },
+        issuedBy: "test"
+      })
+    });
+    const presentationBody = await presentation.json();
+
+    assert.equal(presentation.status, 202);
+    assert.equal(presentationBody.state.modules.interaction.screenPresentation.autoRedirect, false);
+    assert.equal(presentationBody.state.modules.interaction.screenPresentation.showDebug, true);
+    assert.equal(presentationBody.state.modules.interaction.screenPresentation.showMenu, true);
+  });
+});
+
+test("keeps visual control independent from screen routing changes", async () => {
+  await withServer(async (baseUrl) => {
+    await fetch(`${baseUrl}/api/control`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        module: "interaction",
+        target: "A1",
+        command: "setScreenOwner",
+        value: "baofa",
+        issuedBy: "test"
+      })
+    });
+
+    const visualResponse = await fetch(`${baseUrl}/api/control`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        module: "visual",
+        target: "visual-main",
+        command: "setScene",
+        value: "Pulse",
+        issuedBy: "test"
+      })
+    });
+    const body = await visualResponse.json();
+
+    assert.equal(visualResponse.status, 202);
+    assert.equal(body.state.modules.visual.scene, "Pulse");
+    assert.equal(body.state.modules.interaction.screenRoutes.A1.owner, "baofa");
   });
 });
 

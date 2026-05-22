@@ -20,7 +20,7 @@ import {
   Type,
   Zap
 } from "lucide-react";
-import type { ControlCommand, ModuleName, PerformanceState } from "../types";
+import type { ControlCommand, ModuleName, PerformanceState, ScreenOwner, ScreenRoutePreset } from "../types";
 import { createFirebaseDashboardClient, shouldUseFirebaseRealtime } from "./firebaseShowControl";
 import "./styles.css";
 
@@ -46,6 +46,23 @@ const moduleLabels: Record<ModuleName, { label: string; icon: React.ReactNode; a
 const interactionModes = ["idle", "interaction", "flow", "climax"];
 const visualScenes = ["Cyber", "Liquid", "Topology", "Pulse", "Void", "Dumbar"];
 const audioPresets = ["Neon Loop", "Warehouse", "Dream Pop", "Break Lab", "EDM Festival", "Echo Bass"];
+const screenRoutePresets: Array<{ value: ScreenRoutePreset; label: string }> = [
+  { value: "balanced", label: "Balanced" },
+  { value: "vj_takeover", label: "VJ Takeover" },
+  { value: "baofa_takeover", label: "Baofa Takeover" }
+];
+const screenOwners: Array<{ value: ScreenOwner; label: string }> = [
+  { value: "vj", label: "VJ" },
+  { value: "baofa", label: "Baofa" },
+  { value: "off", label: "Off" },
+  { value: "diagnostic", label: "Diag" }
+];
+
+function Root() {
+  const screenId = getScreenIdFromPath();
+  if (screenId) return <ScreenGateway screenId={screenId} />;
+  return <App />;
+}
 
 function App() {
   const [snapshot, setSnapshot] = React.useState<PerformanceState | null>(null);
@@ -220,6 +237,12 @@ function App() {
   const audioSources = Object.values(snapshot.audioSources).sort((a, b) => b.level - a.level);
   const activeSource = snapshot.audioSources[snapshot.modules.audio.activeSourceId] || audioSources[0];
   const screenTopology = normalizeScreenTopology(snapshot.modules.interaction.screenTopology);
+  const screenRoutes = snapshot.modules.interaction.screenRoutes || {};
+  const screenPresentation = snapshot.modules.interaction.screenPresentation || {
+    autoRedirect: true,
+    showDebug: false,
+    showMenu: false
+  };
 
   return (
     <main className="app-shell">
@@ -357,6 +380,13 @@ function App() {
                   {scene}
                 </button>
               ))}
+              <button
+                type="button"
+                className={snapshot.modules.visual.fullscreen ? "selected" : ""}
+                onClick={() => sendControl("visual", "setFullscreen", "visual-fullscreen", !snapshot.modules.visual.fullscreen)}
+              >
+                Fullscreen
+              </button>
             </div>
 
             <form className="inline-form" onSubmit={(event) => {
@@ -370,6 +400,43 @@ function App() {
           </Panel>
 
           <Panel id="interaction" title="Multi-screen Interaction" icon={<MonitorCog size={18} />}>
+            <div className="route-presets" aria-label="Screen route presets">
+              {screenRoutePresets.map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  className={snapshot.modules.interaction.screenRoutePreset === preset.value ? "selected" : ""}
+                  onClick={() => sendControl("interaction", "setScreenRoutePreset", "screen-routes", preset.value)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="screen-presentation-controls" aria-label="Screen presentation">
+              <button
+                type="button"
+                className={screenPresentation.autoRedirect ? "selected" : ""}
+                onClick={() => sendControl("interaction", "setScreenAutoRedirect", "screen-routing", !screenPresentation.autoRedirect)}
+              >
+                Auto redirect
+              </button>
+              <button
+                type="button"
+                className={screenPresentation.showMenu ? "selected" : ""}
+                onClick={() => sendControl("interaction", "setScreenMenuVisible", "screen-menu", !screenPresentation.showMenu)}
+              >
+                Show menus
+              </button>
+              <button
+                type="button"
+                className={screenPresentation.showDebug ? "selected" : ""}
+                onClick={() => sendControl("interaction", "setScreenDebugVisible", "screen-debug", !screenPresentation.showDebug)}
+              >
+                Show debug
+              </button>
+            </div>
+
             <div className="screen-grid">
               <button
                 type="button"
@@ -383,11 +450,16 @@ function App() {
                   <button
                     key={screenId}
                     type="button"
-                    className={snapshot.modules.interaction.screenId === screenId ? "selected" : ""}
+                    className={[
+                      snapshot.modules.interaction.screenId === screenId ? "selected" : "",
+                      screenRoutes[screenId]?.owner ? `owner-${screenRoutes[screenId].owner}` : ""
+                    ].filter(Boolean).join(" ")}
                     style={{ gridColumn: index + 1, gridRow: rowIndex + 2 }}
                     onClick={() => sendControl("interaction", "setScreen", screenId, screenId)}
+                    title={screenRoutes[screenId]?.url || screenRoutes[screenId]?.owner || screenId}
                   >
-                    {screenId}
+                    <strong>{screenId}</strong>
+                    <span>{formatOwner(screenRoutes[screenId]?.owner)}</span>
                   </button>
                 ) : (
                   <span key={`empty-${rowIndex}-${index}`} style={{ gridColumn: index + 1, gridRow: rowIndex + 2 }} />
@@ -399,6 +471,10 @@ function App() {
               <span>Intensity {Math.round(snapshot.modules.interaction.intensity * 100)}%</span>
               <span>Growth {Math.round(snapshot.modules.interaction.treeGrowth * 100)}%</span>
               <span>{snapshot.modules.interaction.gestureActive ? "gesture active" : "gesture idle"}</span>
+              <span>Route {snapshot.modules.interaction.screenRoutePreset}</span>
+              <span>{screenPresentation.autoRedirect ? "auto redirect" : "manual routing"}</span>
+              <span>{screenPresentation.showMenu ? "menus shown" : "menus hidden"}</span>
+              <span>{screenPresentation.showDebug ? "debug shown" : "debug hidden"}</span>
             </div>
 
             <div className="button-row">
@@ -418,6 +494,33 @@ function App() {
               <button type="button" onClick={() => sendControl("interaction", "resetTree", "tree", true)}>
                 Reset tree
               </button>
+            </div>
+
+            <div className="route-table">
+              {screenTopology.flatMap((row) => row).filter(Boolean).map((screenId) => {
+                const route = screenRoutes[screenId];
+                return (
+                  <article key={screenId}>
+                    <div>
+                      <strong>{screenId}</strong>
+                      <span>{route?.url || "4300 local status"}</span>
+                      <small>{route?.updatedAt ? `updated ${new Date(route.updatedAt).toLocaleTimeString()}` : "waiting for route"}</small>
+                    </div>
+                    <div className="owner-switch" aria-label={`${screenId} owner`}>
+                      {screenOwners.map((owner) => (
+                        <button
+                          key={owner.value}
+                          type="button"
+                          className={route?.owner === owner.value ? `selected owner-${owner.value}` : ""}
+                          onClick={() => sendControl("interaction", "setScreenOwner", screenId, owner.value)}
+                        >
+                          {owner.label}
+                        </button>
+                      ))}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </Panel>
 
@@ -446,6 +549,127 @@ function App() {
             </div>
           </Panel>
         </section>
+      </section>
+    </main>
+  );
+}
+
+function ScreenGateway({ screenId }: { screenId: string }) {
+  const [snapshot, setSnapshot] = React.useState<PerformanceState | null>(null);
+  const [connection, setConnection] = React.useState<ConnectionState>("connecting");
+  const [message, setMessage] = React.useState("Resolving route");
+  const route = snapshot?.modules.interaction.screenRoutes?.[screenId];
+  const screenPresentation = snapshot?.modules.interaction.screenPresentation || {
+    autoRedirect: true,
+    showDebug: false,
+    showMenu: false
+  };
+  const isValidScreen = Boolean(route);
+
+  React.useEffect(() => {
+    let closed = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+
+    async function boot() {
+      try {
+        const state = await fetchJson<PerformanceState>("/api/state");
+        if (!closed) setSnapshot(state);
+      } catch {
+        if (!closed) {
+          setConnection("offline");
+          setMessage("4300 API unavailable");
+        }
+      }
+      connect();
+    }
+
+    function connect() {
+      if (closed) return;
+      setConnection("connecting");
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+      socket.addEventListener("open", () => {
+        setConnection("connected");
+        socket?.send(JSON.stringify({
+          type: "client.hello",
+          clientId: `screen-gateway-${screenId}`,
+          module: "dashboard",
+          role: "screen-gateway",
+          capabilities: ["state.read", "screen.route"]
+        }));
+      });
+      socket.addEventListener("message", (event) => {
+        const serverMessage = JSON.parse(event.data) as ServerMessage;
+        if (isStateSnapshot(serverMessage)) setSnapshot(serverMessage.state);
+        if (isStatePatch(serverMessage)) {
+          setSnapshot((current) => serverMessage.state || (current ? applyStatePatch(current, serverMessage) : current));
+        }
+      });
+      socket.addEventListener("close", () => {
+        if (closed) return;
+        setConnection("offline");
+        reconnectTimer = window.setTimeout(connect, 1200);
+      });
+    }
+
+    void boot();
+    return () => {
+      closed = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      socket?.close();
+    };
+  }, [screenId]);
+
+  React.useEffect(() => {
+    if (!snapshot) return;
+    if (!route) {
+      setMessage(`Unknown screen ${screenId}`);
+      return;
+    }
+    if (!screenPresentation.autoRedirect) {
+      setMessage(`Manual routing hold for ${formatOwner(route.owner)}`);
+      return;
+    }
+    if ((route.owner === "vj" || route.owner === "baofa") && route.url) {
+      setMessage(`Routing ${screenId} to ${formatOwner(route.owner)}`);
+      window.location.replace(route.url);
+      return;
+    }
+    setMessage(route.owner === "diagnostic" ? "Diagnostic hold" : "Screen is off");
+  }, [route, screenId, screenPresentation.autoRedirect, snapshot]);
+
+  return (
+    <main className="screen-gateway">
+      <section>
+        <div className={`connection-dot ${connection}`} />
+        <span>{connection}</span>
+        <h1>{screenId}</h1>
+        <p>{message}</p>
+        {isValidScreen && route && (
+          <dl>
+            <div>
+              <dt>Owner</dt>
+              <dd>{formatOwner(route.owner)}</dd>
+            </div>
+            <div>
+              <dt>URL</dt>
+              <dd>{route.url || "4300 local status"}</dd>
+            </div>
+            <div>
+              <dt>Auto Redirect</dt>
+              <dd>{screenPresentation.autoRedirect ? "enabled" : "disabled"}</dd>
+            </div>
+            <div>
+              <dt>Menus / Debug</dt>
+              <dd>{screenPresentation.showMenu ? "menus shown" : "menus hidden"} · {screenPresentation.showDebug ? "debug shown" : "debug hidden"}</dd>
+            </div>
+            <div>
+              <dt>Updated</dt>
+              <dd>{new Date(route.updatedAt).toLocaleTimeString()}</dd>
+            </div>
+          </dl>
+        )}
       </section>
     </main>
   );
@@ -544,6 +768,24 @@ function formatMs(value: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+function formatOwner(owner: unknown) {
+  if (owner === "vj") return "VJ";
+  if (owner === "baofa") return "Baofa";
+  if (owner === "off") return "Off";
+  if (owner === "diagnostic") return "Diag";
+  return "Unset";
+}
+
+function getScreenIdFromPath() {
+  const match = window.location.pathname.match(/^\/screen\/([^/]+)\/?$/);
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[1]).trim().toUpperCase();
+  } catch {
+    return match[1].trim().toUpperCase();
+  }
+}
+
 function normalizeScreenTopology(value: unknown): string[][] {
   if (!Array.isArray(value)) return [];
   if (value.every((row) => Array.isArray(row))) {
@@ -562,6 +804,6 @@ function normalizeScreenTopology(value: unknown): string[][] {
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <Root />
   </React.StrictMode>
 );

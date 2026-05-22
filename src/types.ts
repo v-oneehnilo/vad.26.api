@@ -124,6 +124,11 @@ export interface InteractionModuleState {
   screenRegistry: ScreenRegistryEntry[];
   screenRoutes: Record<string, ScreenRouteEntry>;
   screenRoutePreset: ScreenRoutePreset;
+  screenPresentation: {
+    autoRedirect: boolean;
+    showDebug: boolean;
+    showMenu: boolean;
+  };
   screenId: string;
   role: "screen" | "master";
   overview: boolean;

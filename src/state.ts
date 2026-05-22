@@ -131,6 +131,11 @@ function createDefaultInteractionModule(): InteractionModuleState {
     screenRegistry: createDefaultScreenRegistry(),
     screenRoutes: createScreenRoutesForPreset("balanced", now),
     screenRoutePreset: "balanced",
+    screenPresentation: {
+      autoRedirect: true,
+      showDebug: false,
+      showMenu: false
+    },
     screenId: "C2",
     role: "screen",
     overview: false,
@@ -232,7 +237,20 @@ export function normalizeControlCommand(input: unknown): ControlCommand {
 function inferModule(command: string): ControlCommand["module"] {
   if (["setMute", "setGain", "setMasterLevel", "setPreset", "setActiveTab"].includes(command)) return "audio";
   if (["setScene", "setText", "setAudioDrive", "setFullscreen", "setColors", "setFx"].includes(command)) return "visual";
-  if (["setInteractionMode", "setMode", "setIntensity", "resetTree", "pulseScreen", "setScreen", "setScreenOwner", "setScreenRoutePreset"].includes(command)) return "interaction";
+  if ([
+    "setInteractionMode",
+    "setMode",
+    "setIntensity",
+    "resetTree",
+    "pulseScreen",
+    "setScreen",
+    "setScreenOwner",
+    "setScreenRoutePreset",
+    "setScreenAutoRedirect",
+    "setScreenDebugVisible",
+    "setScreenMenuVisible",
+    "setScreenPresentation"
+  ].includes(command)) return "interaction";
   if (["play", "pause", "reset", "setBpm", "seek"].includes(command)) return "show";
   if (command === "focusVideo") return "video";
   if (command === "setGuestOnStage") return "guest";
@@ -283,6 +301,7 @@ export class ShowStateStore {
         this.state.modules.interaction.screenRoutePreset = patchedPreset;
         this.state.modules.interaction.screenRoutes = createScreenRoutesForPreset(patchedPreset, Date.now());
       }
+      this.state.modules.interaction.screenPresentation = normalizeScreenPresentation(this.state.modules.interaction.screenPresentation);
       this.state.modules.interaction.screenRoutes = normalizeScreenRoutes(
         this.state.modules.interaction.screenRoutes,
         this.state.modules.interaction.screenRoutePreset
@@ -461,6 +480,21 @@ function applyCommand(state: PerformanceState, command: ControlCommand) {
         state.modules.interaction.screenRoutes = createScreenRoutesForPreset(preset, Date.now());
       }
     }
+    if (command.command === "setScreenAutoRedirect") {
+      state.modules.interaction.screenPresentation.autoRedirect = Boolean(value);
+    }
+    if (command.command === "setScreenDebugVisible") {
+      state.modules.interaction.screenPresentation.showDebug = Boolean(value);
+    }
+    if (command.command === "setScreenMenuVisible") {
+      state.modules.interaction.screenPresentation.showMenu = Boolean(value);
+    }
+    if (command.command === "setScreenPresentation" && isRecord(value)) {
+      state.modules.interaction.screenPresentation = normalizeScreenPresentation({
+        ...state.modules.interaction.screenPresentation,
+        ...value
+      });
+    }
   }
 
   if (command.module === "guest" && command.command === "setGuestOnStage") {
@@ -477,11 +511,21 @@ function normalizePerformanceState(state: PerformanceState): PerformanceState {
   state.modules.interaction.screenTopology = normalizeScreenTopology(state.modules.interaction.screenTopology);
   state.modules.interaction.screenRegistry = normalizeScreenRegistry(state.modules.interaction.screenRegistry);
   state.modules.interaction.screenRoutePreset = normalizeScreenRoutePreset(state.modules.interaction.screenRoutePreset) || "balanced";
+  state.modules.interaction.screenPresentation = normalizeScreenPresentation(state.modules.interaction.screenPresentation);
   state.modules.interaction.screenRoutes = normalizeScreenRoutes(
     state.modules.interaction.screenRoutes,
     state.modules.interaction.screenRoutePreset
   );
   return state;
+}
+
+function normalizeScreenPresentation(value: unknown): InteractionModuleState["screenPresentation"] {
+  const record = isRecord(value) ? value : {};
+  return {
+    autoRedirect: typeof record.autoRedirect === "boolean" ? record.autoRedirect : true,
+    showDebug: typeof record.showDebug === "boolean" ? record.showDebug : false,
+    showMenu: typeof record.showMenu === "boolean" ? record.showMenu : false
+  };
 }
 
 function createDefaultScreenRegistry() {

@@ -1,4 +1,4 @@
-import type { ControlCommand, EventLogItem, PerformanceState } from "../types";
+import type { ControlCommand, EventLogItem, PerformanceState, ScreenOwner, ScreenRoutePreset } from "../types";
 
 type ConnectionState = "connecting" | "connected" | "offline";
 
@@ -26,6 +26,17 @@ export function shouldUseFirebaseRealtime() {
   if (transport === "websocket") return false;
   return isFirebaseRealtimeConfigured && window.location.hostname.endsWith("vercel.app");
 }
+
+const screenIds = [
+  "A1",
+  "B1", "B2", "B3", "B4", "B5", "B6",
+  "C1", "C2", "C3", "C4",
+  "D1", "D2", "D3",
+  "E1", "F1",
+  "L1", "L2", "R1", "R2"
+];
+const balancedVjScreens = new Set(["A1", "L1", "L2", "R1", "R2"]);
+const takeoverVjScreens = new Set(["A1", "B1", "B2", "B3", "B4", "B5", "B6", "L1", "L2", "R1", "R2"]);
 
 export function createFirebaseDashboardClient(options: DashboardClientOptions) {
   if (!isFirebaseRealtimeConfigured) {
@@ -232,9 +243,68 @@ function commandToStatePatch(command: ControlCommand) {
       patch["modules/interaction/screenId"] = screenId;
       patch["modules/interaction/role"] = screenId === "MASTER" ? "master" : "screen";
     }
+    if (command.command === "setScreenOwner") {
+      const screenId = String(command.target || "");
+      const owner = normalizeScreenOwner(value);
+      if (screenIds.includes(screenId) && owner) {
+        patch[`modules/interaction/screenRoutes/${screenId}`] = makeScreenRoute(screenId, owner, now, "control");
+        patch["modules/interaction/screenRoutePreset"] = "balanced";
+      }
+    }
+    if (command.command === "setScreenRoutePreset") {
+      const preset = normalizeScreenRoutePreset(value || command.target);
+      if (preset) {
+        patch["modules/interaction/screenRoutePreset"] = preset;
+        for (const screenId of screenIds) {
+          patch[`modules/interaction/screenRoutes/${screenId}`] = makeScreenRoute(screenId, ownerForPreset(screenId, preset), now, "preset");
+        }
+      }
+    }
+    if (command.command === "setScreenAutoRedirect") {
+      patch["modules/interaction/screenPresentation/autoRedirect"] = Boolean(value);
+    }
+    if (command.command === "setScreenDebugVisible") {
+      patch["modules/interaction/screenPresentation/showDebug"] = Boolean(value);
+    }
+    if (command.command === "setScreenMenuVisible") {
+      patch["modules/interaction/screenPresentation/showMenu"] = Boolean(value);
+    }
+    if (command.command === "setScreenPresentation" && isRecord(value)) {
+      if (typeof value.autoRedirect === "boolean") patch["modules/interaction/screenPresentation/autoRedirect"] = value.autoRedirect;
+      if (typeof value.showDebug === "boolean") patch["modules/interaction/screenPresentation/showDebug"] = value.showDebug;
+      if (typeof value.showMenu === "boolean") patch["modules/interaction/screenPresentation/showMenu"] = value.showMenu;
+    }
   }
 
   return patch;
+}
+
+function normalizeScreenOwner(value: unknown): ScreenOwner | null {
+  return ["vj", "baofa", "off", "diagnostic"].includes(String(value)) ? String(value) as ScreenOwner : null;
+}
+
+function normalizeScreenRoutePreset(value: unknown): ScreenRoutePreset | null {
+  return ["balanced", "vj_takeover", "baofa_takeover"].includes(String(value)) ? String(value) as ScreenRoutePreset : null;
+}
+
+function ownerForPreset(screenId: string, preset: ScreenRoutePreset): ScreenOwner {
+  if (preset === "baofa_takeover") return "baofa";
+  if (preset === "vj_takeover") return takeoverVjScreens.has(screenId) ? "vj" : "baofa";
+  return balancedVjScreens.has(screenId) ? "vj" : "baofa";
+}
+
+function makeScreenRoute(screenId: string, owner: ScreenOwner, updatedAt: number, source: string) {
+  return {
+    screenId,
+    owner,
+    url: owner === "vj"
+      ? `http://localhost:4302/screen/${encodeURIComponent(screenId)}`
+      : owner === "baofa"
+        ? `http://localhost:4303/screen/${encodeURIComponent(screenId)}`
+        : null,
+    updatedAt,
+    source
+  };
 }
 
 function openStream(path: string, onRemoteChange: () => void | Promise<void>) {
