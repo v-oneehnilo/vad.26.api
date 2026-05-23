@@ -4,6 +4,8 @@ import {
   Activity,
   Aperture,
   AudioLines,
+  ChevronDown,
+  ChevronRight,
   CircleDot,
   Database,
   Gauge,
@@ -916,12 +918,29 @@ function Panel({
   compact?: boolean;
   children: React.ReactNode;
 }) {
+  const storageKey = `vad-panel-collapsed-${id || title}`;
+  const [collapsed, setCollapsed] = React.useState(() => window.localStorage.getItem(storageKey) === "true");
+
+  React.useEffect(() => {
+    window.localStorage.setItem(storageKey, String(collapsed));
+  }, [collapsed, storageKey]);
+
   return (
-    <section id={id} className={compact ? "panel compact" : "panel"}>
+    <section id={id} className={[compact ? "panel compact" : "panel", collapsed ? "collapsed" : ""].join(" ")}>
       <div className="panel-heading">
         <h2>{icon}{title}</h2>
+        <button
+          type="button"
+          className="panel-collapse-button"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+          title={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+          onClick={() => setCollapsed((value) => !value)}
+        >
+          {collapsed ? <ChevronRight size={17} /> : <ChevronDown size={17} />}
+        </button>
       </div>
-      {children}
+      {!collapsed && <div className="panel-body">{children}</div>}
     </section>
   );
 }

@@ -327,6 +327,10 @@ input {
   padding: 16px;
 }
 
+.panel.collapsed {
+  align-self: start;
+}
+
 .panel.compact {
   align-self: start;
 }
@@ -336,6 +340,11 @@ input {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
+  gap: 12px;
+}
+
+.panel.collapsed .panel-heading {
+  margin-bottom: 0;
 }
 
 .panel-heading h2 {
@@ -344,6 +353,26 @@ input {
   align-items: center;
   gap: 8px;
   font-size: 15px;
+}
+
+.panel-collapse-button {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--muted);
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+
+.panel-collapse-button:hover {
+  color: var(--text);
+}
+
+.panel-body {
+  min-width: 0;
 }
 
 .active-source {
