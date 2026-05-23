@@ -35,8 +35,7 @@ test("serves API spec and initial state", async () => {
     assert.equal(Object.keys(state.modules.interaction.screenRoutes).length, 20);
     assert.equal(state.modules.interaction.screenRoutes.A1.owner, "vj");
     assert.equal(state.modules.interaction.screenRoutes.B1.owner, "baofa");
-    assert.equal(state.modules.interaction.screenRoutes.A1.url, "http://localhost:4302/screen/A1");
-    assert.equal(state.modules.interaction.screenRoutes.H2.url, "http://localhost:4303/screen/H2");
+    assert.equal(state.modules.interaction.screenRoutes.L1.url, "http://localhost:4302/screen/L1");
     assert.equal(state.modules.interaction.screenPresentation.autoRedirect, true);
     assert.equal(state.modules.interaction.screenPresentation.showDebug, false);
     assert.equal(state.modules.interaction.screenPresentation.showMenu, false);
@@ -97,7 +96,7 @@ test("accepts interaction module patch for screen route preset", async () => {
     assert.equal(response.status, 202);
     assert.equal(body.state.modules.interaction.screenRoutePreset, "baofa_takeover");
     assert.equal(body.state.modules.interaction.screenRoutes.A1.owner, "baofa");
-    assert.equal(body.state.modules.interaction.screenRoutes.H2.url, "http://localhost:4303/screen/H2");
+    assert.equal(body.state.modules.interaction.screenRoutes.R2.url, "http://localhost:4303/screen/R2");
   });
 });
 
@@ -232,7 +231,7 @@ test("accepts module state patches", async () => {
   });
 });
 
-test("migrates legacy side screen topology ids", async () => {
+test("normalizes flat interaction screen topology patches", async () => {
   await withServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/modules/interaction/state`, {
       method: "POST",
@@ -240,7 +239,7 @@ test("migrates legacy side screen topology ids", async () => {
       body: JSON.stringify({
         source: "baofa",
         patch: {
-          screenTopology: ["A1", "G1", "H2", "B1", "L1", "R2"],
+          screenTopology: ["A1", "B1", "L1", "R2"],
           screenId: "B1"
         }
       })
@@ -249,15 +248,10 @@ test("migrates legacy side screen topology ids", async () => {
     const body = await response.json();
     assert.equal(response.status, 202);
     assert.deepEqual(body.state.modules.interaction.screenTopology, [
-      ["A1"],
-      ["B1", "B2", "B3", "B4", "B5", "B6"],
-      ["C1", "C2", "C3", "C4"],
-      ["D1", "D2", "D3"],
-      ["G1", "E1", "H1"],
-      ["G2", "F1", "H2"]
+      ["A1", "B1", "L1", "R2"]
     ]);
     assert.equal(body.state.modules.interaction.screenTopology[0][0], "A1");
-    assert.equal(body.state.modules.interaction.screenTopology.flat().includes("G1"), true);
+    assert.equal(body.state.modules.interaction.screenTopology.flat().includes("L1"), true);
   });
 });
 

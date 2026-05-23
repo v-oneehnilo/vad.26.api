@@ -23,20 +23,19 @@ export const SCREEN_IDS = [
   "C1", "C2", "C3", "C4",
   "D1", "D2", "D3",
   "E1", "F1",
-  "G1", "G2", "H1", "H2"
+  "L1", "L2", "R1", "R2"
 ] as const;
 
 const SCREEN_TOPOLOGY = [
-  ["A1"],
-  ["B1", "B2", "B3", "B4", "B5", "B6"],
+  ["L1", "A1", "R1"],
+  ["L2", "B1", "B2", "B3", "B4", "B5", "B6", "R2"],
   ["C1", "C2", "C3", "C4"],
   ["D1", "D2", "D3"],
-  ["G1", "E1", "H1"],
-  ["G2", "F1", "H2"]
+  ["E1", "F1"]
 ];
 
-const VJ_SCREEN_IDS = new Set(["A1"]);
-const VJ_TAKEOVER_SCREEN_IDS = new Set(["A1", "B1", "B2", "B3", "B4", "B5", "B6"]);
+const VJ_SCREEN_IDS = new Set(["A1", "L1", "L2", "R1", "R2"]);
+const VJ_TAKEOVER_SCREEN_IDS = new Set(["A1", "B1", "B2", "B3", "B4", "B5", "B6", "L1", "L2", "R1", "R2"]);
 
 export function isModuleName(value: unknown): value is ModuleName {
   return typeof value === "string" && MODULE_NAMES.includes(value as ModuleName);
@@ -697,7 +696,7 @@ function normalizeScreenTopology(value: unknown): string[][] {
   if (!Array.isArray(value)) return SCREEN_TOPOLOGY;
   if (value.every((row) => Array.isArray(row))) {
     const rawScreens = value.flat().map((screenId) => String(screenId || "").trim());
-    if (hasLegacySideScreenIds(rawScreens)) return SCREEN_TOPOLOGY;
+    if (hasAlternateSideScreenIds(rawScreens)) return SCREEN_TOPOLOGY;
     const rows = value
       .map((row) => row
         .map((screenId) => String(screenId || "").trim())
@@ -707,7 +706,7 @@ function normalizeScreenTopology(value: unknown): string[][] {
   }
   if (value.every((screenId) => typeof screenId === "string")) {
     const rawScreens = value.map((screenId) => screenId.trim());
-    if (hasLegacySideScreenIds(rawScreens)) return SCREEN_TOPOLOGY;
+    if (hasAlternateSideScreenIds(rawScreens)) return SCREEN_TOPOLOGY;
     const screens = rawScreens.filter((screenId) => (SCREEN_IDS as readonly string[]).includes(screenId));
     if (screens.length === 0) return SCREEN_TOPOLOGY;
     const rows: string[][] = [];
@@ -719,8 +718,8 @@ function normalizeScreenTopology(value: unknown): string[][] {
   return SCREEN_TOPOLOGY;
 }
 
-function hasLegacySideScreenIds(screenIds: string[]) {
-  return screenIds.some((screenId) => ["L1", "L2", "R1", "R2"].includes(screenId));
+function hasAlternateSideScreenIds(screenIds: string[]) {
+  return screenIds.some((screenId) => ["G1", "G2", "H1", "H2"].includes(screenId));
 }
 
 function clampUnit(value: unknown, fallback = 0) {

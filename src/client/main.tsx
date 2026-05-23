@@ -98,10 +98,10 @@ const screenLayoutItems: ScreenLayoutItem[] = [
   { id: "D3", col: 6.8, row: 3.35 },
   { id: "E1", col: 5.5, row: 4.35, width: 1.15 },
   { id: "F1", col: 5.5, row: 5.55, width: 1.2 },
-  { id: "G1", col: 0.95, row: 4.2, height: 0.82 },
-  { id: "G2", col: 0.95, row: 5.4, height: 0.82 },
-  { id: "H1", col: 10.05, row: 4.2, height: 0.82 },
-  { id: "H2", col: 10.05, row: 5.4, height: 0.82 }
+  { id: "L1", col: 0.95, row: 4.2, height: 0.82 },
+  { id: "L2", col: 0.95, row: 5.4, height: 0.82 },
+  { id: "R1", col: 10.05, row: 4.2, height: 0.82 },
+  { id: "R2", col: 10.05, row: 5.4, height: 0.82 }
 ];
 const screenLayoutOrder = screenLayoutItems.map((screen) => screen.id);
 
